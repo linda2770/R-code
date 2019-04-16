@@ -1,0 +1,37 @@
+---
+title: "hw9"
+author: "lin du ld2770"
+date: "November 4, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(survival)
+data1 = lung
+```
+
+1. Estimate and plot the survival curves fortime by sex using Kaplan Meier
+```{r}
+fit1 <- survfit(Surv(time,status) ~ sex,data = data1)
+plot(fit1, lty=2:3,main="Kaplan-Meier Estimates for Lung Cancer Data")
+legend("bottomleft",c('male','female'),lty=c(2,3))
+```
+
+2 Fleming-Harrington
+```{r}
+fit2 <- survfit(Surv(time,status) ~ sex,type='fleming-harrington',data = data1)
+plot(fit1, lty=2:3,main="Fleming-Harrington Estimates for Lung Cancer Data")
+legend("bottomleft",c('male','female'),lty=c(2,3))
+```
+2. For each case in 1, estimate the median survival time, using estimated survival curves
+```{r}
+print(fit1)
+```
+```{r}
+print(fit2)
+```
+The median survival time for male and female using Kplan-Meier Estimates are 270 and 426. The meidan survival time for male and female using Fleming-Harrington Estimates are also 270 and 426.

@@ -1,0 +1,136 @@
+---
+title: "hw7"
+author: "lin du ld2770"
+date: "October 26, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages('ResourceSelection')
+library(ResourceSelection)
+library(glmnet)
+```
+1) 
+```{r}
+# Preparing the data
+data1 <- data.frame(c(8, 9, 11, 11, 12, 8), c(10, 11, 9, 21, 13, 19), c(53, 34, 44, 55, 34, 30))
+gender <- c("Male", "Female")
+education <- c("No_College_Degree", "Undergrad_Degree", "Post-grad_Degree")
+mental <- c("Severely_Depressed", "Depressed", "Normal")
+names(data1) <- mental
+pastename <- paste(c(rep(gender[1], 3), rep(gender[2], 3)), rep(education, 2), sep = ".")
+row.names(data1) <- pastename
+gen <- function(data, gender, education, mental){
+  rowname <- paste(gender, education, sep = ".")
+  i <- which(row.names(data) == rowname)
+  j <- which(names(data) == mental)
+  t <- data[i, j]
+  result <- c()
+  r <- c(gender, education, mental)
+  for (i in 1:t){
+    result <- rbind(result, r)
+  }
+  return(result)
+}
+
+dat <- c()
+for (i in 1:2){
+  gender1 <- gender[i]
+  for (j in 1:3){
+    education1 <- education[j]
+    for (k in 1:3){
+      mental1 <- mental[k]
+      dat <- rbind(dat, gen(data1, gender1, education1, mental1))
+    }
+  }
+}
+data <- data.frame(dat)
+names(data) <- c("Gender","Education_Level","Mental_Health")
+```
+
+```{r}
+data1 <- data
+data1$Mental_Health <- 1 * (data1$Mental_Health != "Normal")
+data1$Education_Level <- 1 * (data1$Education_Level != "No_College_Degree")
+data1$Gender <- 1 * (data1$Gender == "Male")
+fit1 <- glm(Mental_Health ~ Gender, data = data1, family = "binomial")
+summary(fit1)
+```
+#We can see from the outcome that the estimated ß0 is -0.3483, which is the log odds of have de Depression or a Severly Depression for Female. And the estimated ß1 is -0.4664, which means the log odds of have a Depression or a Severly Depression for Male, relative to female. P velue is smaller than 0.05, so we can conclude that there is association between Gender and Mental Health. 
+
+```{r}
+fit2 <- glm(Mental_Health ~ Gender + Education_Level, data = data1, family = "binomial")
+summary(fit2)
+```
+
+#We can see from the outcome that the estimated ß0 is -0.5613, which is the log odds of have a Depression or a Severly Depression for the people who has no college degress and Female. And the estimated ß1 is -0.4892, which is the log odds of have a Depression or a Severly Depression for Male, relative to Female, for all Education Level.The estimated ß2 is 0.3676, which is the log odds ratio of having a Depression or a Severly Depression for people who have no degree for both Male and Femal.  P velue of ß1 is smaller than 0.05, so we can conclude that there is association between Gender and Mental Health, but p value od ß2 is larger than 0.05 so we cannot reject the null hypothesis that means we canät conclude that there is association bwtween education and mental health. 
+
+c)
+```{r}
+library(ResourceSelection)
+fit3 <- glm(Mental_Health ~ Education_Level, data = data1, family = "binomial")
+summary(fit3)
+```
+```{r}
+anova(fit3, test = "Chisq")
+```
+```{r}
+h.test1 <- hoslem.test(fit3$y, fitted(fit3))
+h.test1
+```
+# Since the p value is 0.1198 which is greater than 0.05, which means we can't reject the null hypothesis that depression is unrelated to education level. From hoslem test, the p value is 1, supporting our  conclusion.
+
+2
+a)
+```{r}
+data2 <- data
+data2$Mental_Health <- 1 * (data2$Mental_Health != "Normal")
+data2$Gender <- 1 * (data2$Gender == "Male")
+data2$D1 <- 1 * (data2$Education_Level == "Undergrad_Degree")
+data2$D2 <- 1 * (data2$Education_Level == "Post-grad_Degree")
+fit1 <- glm(Mental_Health ~ Gender, data = data2, family = "binomial")
+summary(fit1)
+```
+#This one is the same as Q1(a). We can see from the outcome that the estimated ß0 is -0.3483, which is the log odds of have de Depression or a Severly Depression for Female. And the estimated ß1 is -0.4664, which means the log odds of have a Depression or a Severly Depression for Male, relative to female. P velue is smaller than 0.05, so we can conclude that there is association between Gender and Mental Health. 
+
+b)
+```{r}
+fit2 <- glm(Mental_Health ~ D1 + D2 + Gender, data = data2, family = "binomial")
+summary(fit2)
+```
+
+#We can see from the outcome that the estimated intercept is -0.5615, which means the log odds of have a Depression or a Severly Depression for the people who has no college degress and Female. And the estimated D1 parameter is 0.3760, which means the log odds of have a Depression or a Severly Depression for for people have undergrad degree, relative to someone who has No College Degree, for both Male and Female.The estimated D2 parameter is 0.3595, which is the log odds ratio of having a Depression or a Severly Depression for people who has Post-grad Degree, relative to someone who has No College Degree, for both gender. Estimated Gender parameter is -0.4886, which is the log odds ratio of having a Depression or Severly Depression for someone whose gender is Male, relative to someone whose gender is Female, for all Education Level.
+
+c)
+```{r}
+hoslem.test(x = fit2$y, y = fitted(fit2), g = 4)
+```
+# Since p value is greater than 0.05, we can not reject the null hypothesis which means it is appropriate to pool data across all Education Levels.
+
+3
+```{r}
+library(glmnet)
+X <- data.matrix(subset(data1, select = c(Gender, Education_Level)))
+y <- data1[, 3]
+fit <- glmnet(X, y, family = "binomial", alpha = 0.5) 
+cv.fit <- cv.glmnet(X, y, family = "binomial", alpha = 0.5) 
+plot(cv.fit)
+
+
+```
+```{r}
+## best lambda
+cv.fit$lambda.min
+
+## best model
+model.final <- cv.fit$glmnet.fit
+
+# the best model's coefficients
+model.coef <- coef(cv.fit$glmnet.fit, s = cv.fit$lambda.min)
+model.coef
+```
+#For ß0, we can interpret it as the log odds of depression of female without educational degree is -0.5571. For ß1, we can interpret it as the log odds ratio of having depression for a male relative to a female for any educational level is -0.4625. For ß2, we can interpret it as the log odds ratio of having depression for a educational degree holders relative to a no degree holders (reference group) for any gender is 0.3414.

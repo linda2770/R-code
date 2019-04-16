@@ -1,0 +1,148 @@
+---
+title: "hw2"
+author: "lin du ld2770"
+date: "September 17, 2018"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+data("ToothGrowth")
+VC = ToothGrowth[ToothGrowth[,'supp'] == 'VC','len']
+OJ = ToothGrowth[ToothGrowth[,'supp'] == 'OJ','len']
+
+hist(OJ)
+```
+```{r}
+qqnorm(OJ)
+
+```
+```{r}
+hist(VC)
+```
+```{r}
+qqnorm(VC)
+```
+
+We can see from graphs anc conclude that OJ is left skewed without outliers, but VC is normal distributed without outliers.
+
+1 a) parametric procedure
+```{r}
+t.test(VC,OJ)
+```
+
+P-value is larger than 0.05, and we can conclude that we can not reject the null hypothesis, which means the two differences are same.
+
+b) Non parametric procedure
+```{r}
+wilcox.test(VC,OJ)
+```
+
+P-value is larger than 0.05, and we can conclude that we can not reject the null hypothesis, which means the two differences are same.
+
+2 Ignore 'dose' and compute the following, based on a suitable bootstrap method:
+
+a)A 95% confidence interval for the difference in median weight for the two groups
+
+```{r}
+library('boot')
+fun_median <- function(data1,data2,indices) {
+return(median(data1[indices]) - median(data2[indices]))
+}
+diff_median <- boot(OJ, data2 = VC, R = 500, statistic = fun_median)
+boot.ci(diff_median, conf = 0.95, type = "bca")
+```
+
+b)A 95% bootstrap confidence interval for the ratio of the variances of the two groups
+```{r}
+func_ratio <- function(data1, data2, indices) {
+return(var(data1[indices])/var(data2[indices]))
+}
+ratio <- boot(OJ, data2 = VC, R = 500, statistic = func_ratio)
+boot.ci(ratio, conf = 0.95, type = "bca")
+```
+
+
+
+3 a)Ignore 'dose', and determine whether there is a significant difference in the proportions of
+the two groups classified as "HIGH" using a suitable test and a 95% confidence interval.
+```{r}
+for (i in 1:nrow(ToothGrowth)){
+ if (ToothGrowth[i,'len'] >20){
+   ToothGrowth[i,'level'] = 'high'
+   
+ }
+  else {ToothGrowth[i,'level'] = 'low'}
+}
+
+VC_level = ToothGrowth[ToothGrowth[,'supp'] == 'VC','level']
+OJ_level = ToothGrowth[ToothGrowth[,'supp'] == 'OJ','level']
+
+
+num_vc = 0
+num_oj = 0
+for (i in 1:length(VC_level)){
+  if (VC_level[i] == "high"){
+    num_vc = num_vc + 1
+  }
+}
+
+for (i in 1:length(OJ_level)){
+  if (OJ_level[i] == "high"){
+    num_oj = num_oj + 1
+  }
+}
+
+res <- prop.test(x = c(num_vc,num_oj), n = c(length(VC_level),length(OJ_level)))
+res
+```
+
+p-value is not small enough, we can't reject the null hypothesis, means the difference in the proportions of the two groups  classified as "HIGH"  is 0.
+
+b)Repeat the above, taking into account "dose", and comment on the results.
+```{r}
+num_low_0.5=0
+num_low_1=0
+num_low_2=0
+num_high_0.5=0
+num_high_1=0
+num_high_2=0
+for (i in 1:nrow(ToothGrowth)){
+  if (ToothGrowth$level[i] == 'low'){
+    if (ToothGrowth$dose[i] == 0.5){
+      num_low_0.5= num_low_0.5 + 1
+    }
+     if (ToothGrowth$dose[i] == 1.0) {
+       num_low_1 = num_low_1 +1
+     }
+    if (ToothGrowth$dose[i] == 2.0) {
+      num_low_2 = num_low_2 + 1
+    }
+  }
+  else{
+    if (ToothGrowth$dose[i] == 0.5){
+      num_high_0.5 = num_high_0.5 + 1
+    }
+    if (ToothGrowth$dose[i] == 1.0){
+      num_high_1 = num_high_1 + 1
+    }
+    if (ToothGrowth$dose[i] == 2.0){
+      num_high_2 = num_high_2 + 1
+    }
+  }
+}
+
+dose_level <- matrix(c(num_high_0.5,num_low_0.5,num_high_1,num_low_1,num_high_2,num_low_2), 3,2,byrow=TRUE)
+colnames(dose_level) = c('High','Low')
+rownames(dose_level) = c('dose_0.5','dose_1.0','dose_2.0')
+fisher.test(dose_level)
+
+```
+
+p-value is small enough, we can reject the null hypothesis, means taking into account "dose", the difference in the proportions of the two groups classified as "HIGH" is not 0.

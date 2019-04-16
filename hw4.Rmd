@@ -1,0 +1,123 @@
+---
+title: "hw4"
+author: "lin du ld2770"
+date: "September 29, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(MASS)
+data(birthwt)
+```
+
+```{r}
+newdata <- birthwt[,c('age','lwt','race','smoke','ptl','ht','ui','ftv')]
+fit <- lm(birthwt$bwt ~ birthwt$age+birthwt$lwt+birthwt$race+birthwt$smoke+birthwt$ptl+birthwt$ht+birthwt$ui+birthwt$ftv)
+summary(fit)
+```
+## The model of Ridge is y = 3129.46 - 0.26*age + 3.43*lwt - 188.49*race - 358.45*smoke - 51.15*ptl - 600.64*ht - 511.25*ui - 15.53*ftv. R-square is 0.1884 which is small. We check wether there is multicollinearity or not.
+
+
+```{r}
+#VIF test
+car::vif(fit)
+```
+```{r}
+#condition numbers
+res <- cor(newdata)
+round(res, 2)
+kappa(res)
+```
+# VIF test shows every score is small and
+# condition number is small, wchich mean that there is no multicollinearity.
+
+```{r}
+#install.packages('glmnet')
+library(glmnet)
+set.seed(123)
+X <- as.matrix(newdata)
+ridge.mod <- cv.glmnet(X,birthwt$bwt,lambda = 10^seq(4,-1,-.1),alpha=0)
+```
+```{r}
+
+plot(ridge.mod, main="plot of ridge")
+```
+```{r}
+#best lambda
+
+opt_lambda = ridge.mod$lambda.min
+opt_lambda
+```
+```{r}
+fit <- ridge.mod$glmnet.fit
+summary(fit)
+```
+
+```{r}
+coef(ridge.mod,s=opt_lambda)
+```
+# The model of Ridge is y = 3013.89 + 1.89*age + 2.84*lwt - 143.94*race - 271.9*smoke -71.98*ptl - 469.15*ht - 420*ui -5.73*ftv.
+
+
+```{r}
+y_predicted <- predict(fit, s = opt_lambda, newx = X)
+y = birthwt$bwt
+# Sum of Squares Total and Error
+sst <- sum((y - mean(y))^2)
+sse <- sum((y_predicted - y)^2)
+
+# R squared
+rsq <- 1 - sse / sst
+rsq
+```
+# Adjusted R-squared of OLS is 0.1884 but R square of Ridge Regression is 0.2144 which is larger then the R square of OSL. Thus we can conclude in this situation, Ridge Regression is better than OLS.
+
+#2)
+# Lasso
+## 66% of the sample size
+```{r}
+set.seed(123)
+lasso.mod <- cv.glmnet(X,birthwt$bwt,lambda = 10^seq(4,-1,-.1),alpha=1)
+plot(lasso.mod, main="plot of lasso")
+best_lambda_lasso = lasso.mod$lambda.1se
+y_predicted_lasso <- predict(lasso.mod, s = best_lambda_lasso, newx = X)
+```
+
+```{r}
+# Sum of Squares Total and Error
+sst2 <- sum((y - mean(y))^2)
+sse2 <- sum((y_predicted_lasso - y)^2)
+
+# R squared
+rsq2 <- 1 - sse2 / sst2
+rsq2
+```
+```{r}
+#MSE
+mean((y_predicted_lasso-y)^2)
+```
+# the R squared of Lasso is 0.1795, and the MSE is 433959.2
+
+```{r}
+# stepAIC
+help('stepAIC')
+step.mod <- stepAIC(fit,direction='forward',trace=FALSE)
+summary(step.mod)
+step.prict <- predict(step.mod, newx = x)
+#MSE
+mean((step.prict-y)^2)
+
+# Sum of Squares Total and Error
+sst3 <- sum((y - mean(y))^2)
+sse3 <- sum((step.prict - y)^2)
+
+# R squared
+rsq3 <- 1 - sse3 / sst3
+rsq3
+
+```
+# The MSE of StepAIC is 411010.3 and its R squared is 0.2229. Comparing the lasso and stepAIC, we can conclude stepAIC is better than Lasso.

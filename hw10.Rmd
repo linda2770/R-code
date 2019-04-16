@@ -1,0 +1,53 @@
+---
+title: "hw10"
+author: "lin du ld2770"
+date: "November 27, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(splines)
+library(survival)
+data("ovarian")
+```
+
+```{r}
+for (i in 1:nrow(data)){
+  if (data$age[i]<65){
+    data[i,'AGE_GROUP'] <- 1
+  }
+  else {
+    data[i,'AGE_GROUP'] <- 0
+  }
+}
+```
+
+```{r}
+fitcox <- coxph(Surv(time,status) ~ AGE_GROUP,data = data)
+summary(fitcox)
+```
+1. statistical significance. The wald statistic evaluates, whether the beta (??) coefficient of a given variable is statistically significantly different from 0. From the output above, we can conclude that the variable AGE GROUP have low statistically significant coefficients.
+2.The regression coefficients. The sign of the regression coefficients is negative. Cox model gives the hazard ratio (HR) for the second group relative to the first group. Because 1 is young and 0 is old.The R summary for the Cox model gives the hazard ratio (HR) for the second group relative to the first group, that is, young versus old. The beta coefficient for age group = -0.2911 indicates that young have lower risk of death (lower survival rates) than old, in these data.
+3. Hazard ratios.The exponentiated coefficients is 0.75 give the effect size of covariates. being young reduces the hazard by a factor of 0.75. Being young is associated with good prognostic.
+4.Confidence intervals of the hazard ratios.The summary output also gives upper and lower 95% confidence intervals for the hazard ratio (exp(coef)), lower 95% bound = 0.5502, upper 95% bound = 1.015.
+5.Global statistical significance of the model.The p valus is smaller than 0.05 indicates age_group is not global statistical significant.
+```{r}
+prop <- cox.zph(fitcox)
+plot(prop)
+```
+```{r}
+prop
+```
+The null hypothesis is ratio of proportional hazards(PH) does not depend on time and the altanative hypothesis is the ratio of hazards depends on time. We can see from the plot there is no pattern with time.The assumption od proportional hazards is supported. Plus, the p valu is not statistical significant, so we can not reject the null hypothesis. Therefore, we can assume the proportional hazards.
+```{r}
+fitcox1 <- coxph(Surv(time,status) ~ AGE_GROUP+sex,data = data)
+summary(fitcox1)
+```
+The p-value for all three overall tests (likelihood, Wald, and score) are significant, indicating that the model is significant.That means the omnibus null hypothesis is soundly rejected.
+The covariates sex is significant (p < 0.05). However, the covariate age_group fails to be significant.
+The p-value for sex is 0.0016, with a hazard ratio HR = exp(coef) = 0.58, indicating a strong relationship between the patients' sex and decreased risk of death. The hazard ratios of covariates are interpretable as multiplicative effects on the hazard.Holding the other covariates constant, being female (sex=2) reduces the hazard by a factor of 0.58. We conclude that, being female is associated with good prognostic.
+However, the p-value for age_group is now p=0.0681. The hazard ratio HR = exp(coef) = 0.7517, with a 95% confidence interval of 0.55 to 1.02. Because the confidence interval for HR includes 1, these results indicate that age_group makes a smaller contribution to the difference in the HR after adjusting for the patients' sex, and only trend toward significance. Holding the other covariates constant, an additional year of age induce daily hazard of death by a factor of exp(beta) = 0.75, which is not a significant contribution comparing to the patients' sex.

@@ -1,0 +1,181 @@
+---
+title: "hw6"
+author: "lin du ld2770"
+date: "October 16, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+data <- ChickWeight %>%
+group_by(Chick) %>%
+mutate(birthWeight = weight[Time==0])
+data
+```
+
+
+```{r}
+ChickWeight_10 <- data[data["Time"]==10,]
+ChickWeight_18 <- data[data["Time"]==18,]
+ChickWeight_20 <- data[data["Time"]==20,]
+```
+
+```{r}
+
+ancova1 <- lm(weight ~ birthWeight + Diet, data=ChickWeight_10)
+anova(ancova1)
+```
+
+
+```{r}
+ancova2 <- lm(weight ~ birthWeight+ Diet, data=ChickWeight_18)
+anova(ancova2)
+```
+
+
+
+```{r}
+ancova3 <- lm(weight ~ birthWeight + Diet, data=ChickWeight_20)
+anova(ancova3)
+```
+For day 10, the p-value is 0.00212 with adjusting for baseline, so there is a significant difference in the mean weights of the four groups on Day 10 at 0.05 level of significance.
+For day 18, the p-value is 0.0234 with adjusting for baseline, so there is a significant difference in the mean weights of the four groups on Day 18 at 0.05 level of significance.
+For day 10, the p-value is 0.0109 with adjusting for baseline, so there is a significant difference in the mean weights of the four groups on Day 20 at 0.05 level of significance.
+
+ANOVA
+```{r}
+## using compound symmetry for the variance-covariance structure
+library(nlme)
+data1 <- data[data$Time %in% c(10,18,20), ]
+data1 <- groupedData(weight ~ Diet | Chick, data = data1)
+compsym <- gls(weight ~ birthWeight + Diet*factor(Time), data = data1,
+corr = corCompSymm(form = ~ 1 | Chick))
+anova(compsym)
+```
+The P-value of Diet is 0.0013 when using compound symmetry for the variance-covariance structure, so
+there is a significant difference in the mean weights of four groups on Days 10, 18 and 20, at 0.05 level of
+significance.
+
+```{r}
+## using unstructured covariance for the variance-covariance structure
+## Option "corr = corSymm" specifies that the correlation structure is unstructured
+unstruct <- gls(weight ~ birthWeight + Diet*factor(Time), data = data1,
+corr=corSymm(form= ~ 1 | Chick),
+weights = varIdent(form = ~ 1 | Time))
+anova(unstruct)
+```
+The P-value of Diet is less than 0.0001 when using unstructured covariance for the variance-covariance
+structure, so there is a significant difference in the mean weights of four groups on Days 10, 18 and 20, at
+0.05 level of significance.
+```{r}
+anova(compsym,unstruct)
+```
+The unstructured covariance structure among repeated measures have relatively smaller AIC and BIC statistics.
+Te degrees of freedom of unstructured covariance is 19, which is greater than 15 in compound symmetry
+structure (the model has increased the number of parameters that had to be estimated), but it could be
+outweighed by the improvement of the AIC, BIC and log likelihood statistics. So the repeated measures
+ANOVA when assuming unstructured covariance can better fit the data.
+
+
+3) Tests for the assumptions
+
+Assumptions for ANCOVA
+Assumption 1: equality of slopes-interaction is not significiant,
+testing the equality of slopes that the covariate is associated with the
+outcome the same way between groups we are just interested in the
+interaction term here.
+```{r}
+res1<-aov(weight~ birthWeight + Diet + birthWeight:Diet,data=ChickWeight_10)
+summary(res1)
+```
+
+
+Assumption 2: linearity of slopes.
+```{r}
+par(mfrow=c(1,3))
+plot(ChickWeight_10$birthWeight,ChickWeight_10$weight,col=ChickWeight_10$Diet,xlab="Time",ylab="weight")
+plot(ChickWeight_18$birthWeight,ChickWeight_18$weight,col=ChickWeight_18$Diet,xlab="Time",ylab="weight")
+plot(ChickWeight_20$birthWeight,ChickWeight_20$weight,col=ChickWeight_20$Diet,xlab="Time",ylab="weight")
+```
+
+
+Assumption 3: Equality of the two groups on the covariate.
+```{r}
+aov(weight~Diet,data=ChickWeight_10)
+```
+#We can conclude that these three dates are not equal.
+
+Assumption 4: Homogeneity of variance
+```{r}
+library(car)
+
+leveneTest(weight~Diet,center=mean,data=ChickWeight_10)
+```
+
+Assumption 5: check validity for normality
+
+```{r}
+shapiro.test(resid(ancova1))
+```
+```{r}
+shapiro.test(resid(ancova2))
+```
+```{r}
+shapiro.test(resid(ancova3))
+```
+
+```{r}
+par(mfrow=c(2,3))
+hist(resid(ancova1)); hist(resid(ancova2)); hist(resid(ancova3))
+qqnorm(resid(ancova1)); qqnorm(resid(ancova2)); qqnorm(resid(ancova3))
+```
+From ANCOVA, the p-value for the Shapiro-Wilk normality test are 0.02894, 0.8441, 0.7082. The first one for
+Day10 is less than 0.05, which means that the distribution of the data are significantly different from normal
+distribution. The p-values of the second and third (Day 18 and 20) are greater than 0.05, so the distribution
+of the data are not significantly different from normal distribution, then can assume the normality.
+
+Check the assumption of ANOVA
+```{r}
+#check validity for normality
+shapiro.test(resid(fit.compsym))
+```
+```{r}
+shapiro.test(resid(fit.unstruct))
+```
+```{r}
+par(mfrow=c(2,2))
+hist(resid(fit.compsym)); hist(resid(fit.unstruct))
+qqnorm(resid(fit.compsym)); qqnorm(resid(fit.unstruct))
+```
+For for repeated measures ANOVA, the p-values of the Shapiro-Wilk normality test are 0.02499 and 0.02359,
+which means that the distribution of the data are significantly different from normal distributionthe, so
+normality assumption does not hold. Also, we can see from the histograms and qq-plots that there is abvious
+deviation from normality.
+```{r}
+library(car)
+leveneTest(weight ~ Diet, center = mean, data = ChickWeight_10)
+```
+```{r}
+leveneTest(weight ~ Diet, center = mean, data = ChickWeight_18)
+```
+```{r}
+leveneTest(weight ~ Diet, center = mean, data = ChickWeight_20)
+```
+```{r}
+par(mfrow = c(1, 3))
+plot(fitted(ancova1), resid(ancova1), main = "Residual plot", xlab = "Fitted values", ylab = "Residuals")
+abline(h = 0, col = "blue")
+plot(fitted(ancova2), resid(ancova2), main = "Residual plot", xlab = "Fitted values", ylab = "Residuals")
+abline(h = 0, col = "blue")
+plot(fitted(ancova3), resid(ancova3), main = "Residual plot", xlab = "Fitted values", ylab = "Residuals")
+abline(h = 0, col = "blue")
+```
+when testing the equal variance assumptions, p-valuesof the Levene's test for homogeneity of variance are
+0.2657, 0.3664 and 0.3358, all of them are greater than 0.05, so we can conclude that the assumption of equal
+variances is satisfied. From on the residual plots above, the errors seem to have constant variance as the
+residuals are scattered randomly around zero.
+
